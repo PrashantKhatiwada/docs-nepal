@@ -183,7 +183,7 @@ export default function LoginPage() {
                     )}
                   </Button>
                 </form>
-
+{/* 
                 <div className="relative">
                   <div className="absolute inset-0 flex items-center">
                     <Separator />
@@ -217,7 +217,7 @@ export default function LoginPage() {
                     </svg>
                   )}
                   Continue with Google
-                </Button>
+                </Button> */}
               </TabsContent>
 
               <TabsContent value="register" className="space-y-4 mt-6">
@@ -300,7 +300,7 @@ export default function LoginPage() {
                   </Button>
                 </form>
 
-                <div className="relative">
+                {/* <div className="relative">
                   <div className="absolute inset-0 flex items-center">
                     <Separator />
                   </div>
@@ -333,7 +333,7 @@ export default function LoginPage() {
                     </svg>
                   )}
                   Continue with Google
-                </Button>
+                </Button> */}
               </TabsContent>
             </Tabs>
           </CardContent>
