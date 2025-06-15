@@ -18,5 +18,5 @@ Creating official documents in Nepal is often confusing, time-consuming, and fil
 
 
 ## 🌐 Live Preview
-https://docsnepal.vercel.app
+https://docs-nepal.vercel.app
 
