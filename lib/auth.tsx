@@ -11,13 +11,14 @@ export interface User {
   name: string
   avatar?: string
   provider: "google" | "email"
+  emailConfirmed?: boolean
 }
 
 interface AuthContextType {
   user: User | null
   loading: boolean
   signIn: (email: string, password: string) => Promise<void>
-  signUp: (email: string, password: string, name: string) => Promise<void>
+  signUp: (email: string, password: string, name: string) => Promise<{ needsConfirmation: boolean }>
   signInWithGoogle: () => Promise<void>
   signOut: () => Promise<void>
 }
@@ -106,6 +107,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           supabaseUser.email!.split("@")[0],
         avatar: supabaseUser.user_metadata?.avatar_url,
         provider: (supabaseUser.app_metadata?.provider as "google" | "email") || "email",
+        emailConfirmed: !!supabaseUser.email_confirmed_at,
       }
 
       // Try to get or create user profile, but don't fail if table doesn't exist
@@ -135,6 +137,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
               name: newProfile.name,
               avatar: newProfile.avatar_url || undefined,
               provider: newProfile.provider as "google" | "email",
+              emailConfirmed: simpleUser.emailConfirmed,
             })
             return
           }
@@ -146,6 +149,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             name: profile.name,
             avatar: profile.avatar_url || undefined,
             provider: profile.provider as "google" | "email",
+            emailConfirmed: simpleUser.emailConfirmed,
           })
           return
         }
@@ -199,7 +203,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         throw new Error(result.error.message)
       }
 
-      // Don't need to manually set user here, the auth state change listener will handle it
+      // Check if email confirmation is needed
+      const needsConfirmation = !result.data.session && result.data.user && !result.data.user.email_confirmed_at
+
+      return { needsConfirmation: !!needsConfirmation }
     } catch (error: any) {
       console.error("Sign up error:", error)
       throw new Error(error.message || "Failed to create account")

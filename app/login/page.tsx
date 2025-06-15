@@ -57,17 +57,27 @@ export default function LoginPage() {
     setIsLoading(true)
 
     try {
-      await signUp(registerData.email, registerData.password, registerData.name)
+      const result = await signUp(registerData.email, registerData.password, registerData.name)
 
-      toast({
-        title: "Account created!",
-        description: "Welcome to DocsNepal. You can now access all templates.",
-      })
+      if (result.needsConfirmation) {
+        toast({
+          title: "Account created!",
+          description: "Please check your email to confirm your account.",
+        })
 
-      // Small delay to ensure auth state is updated
-      setTimeout(() => {
-        router.push("/templates")
-      }, 500)
+        // Redirect to email confirmation page
+        router.push(`/confirm-email?email=${encodeURIComponent(registerData.email)}`)
+      } else {
+        toast({
+          title: "Account created!",
+          description: "Welcome to DocsNepal. You can now access all templates.",
+        })
+
+        // Small delay to ensure auth state is updated
+        setTimeout(() => {
+          router.push("/templates")
+        }, 500)
+      }
     } catch (error: any) {
       console.error("Register error:", error)
       toast({
@@ -174,7 +184,7 @@ export default function LoginPage() {
                   </Button>
                 </form>
 
-                {/* <div className="relative">
+                <div className="relative">
                   <div className="absolute inset-0 flex items-center">
                     <Separator />
                   </div>
@@ -207,7 +217,7 @@ export default function LoginPage() {
                     </svg>
                   )}
                   Continue with Google
-                </Button> */}
+                </Button>
               </TabsContent>
 
               <TabsContent value="register" className="space-y-4 mt-6">
@@ -290,7 +300,7 @@ export default function LoginPage() {
                   </Button>
                 </form>
 
-                {/* <div className="relative">
+                <div className="relative">
                   <div className="absolute inset-0 flex items-center">
                     <Separator />
                   </div>
@@ -323,7 +333,7 @@ export default function LoginPage() {
                     </svg>
                   )}
                   Continue with Google
-                </Button> */}
+                </Button>
               </TabsContent>
             </Tabs>
           </CardContent>
