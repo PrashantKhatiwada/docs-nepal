@@ -63,14 +63,76 @@ export function RichTextEditor({
 
   useEffect(() => {
     if (editorRef.current && editorRef.current.innerHTML !== value) {
-      editorRef.current.innerHTML = value
+      const isEditorFocused = document.activeElement === editorRef.current
+
+      if (!isEditorFocused) {
+        // Only update content when editor is not focused to avoid cursor issues
+        editorRef.current.innerHTML = value
+      }
     }
   }, [value])
 
   const handleInput = () => {
     if (editorRef.current) {
+      // Save cursor position before sanitizing
+      const selection = window.getSelection()
+      const range = selection?.rangeCount ? selection.getRangeAt(0) : null
+      const cursorOffset = range ? range.startOffset : 0
+      const parentNode = range ? range.startContainer : null
+
       const sanitizedContent = sanitizeHtml(editorRef.current.innerHTML)
-      onChange(sanitizedContent)
+
+      // Only update if content actually changed to avoid unnecessary re-renders
+      if (sanitizedContent !== value) {
+        onChange(sanitizedContent)
+
+        // Restore cursor position after content update
+        setTimeout(() => {
+          restoreCursorPosition(parentNode, cursorOffset)
+        }, 0)
+      }
+    }
+  }
+
+  const restoreCursorPosition = (targetNode: Node | null, offset: number) => {
+    if (!editorRef.current || !targetNode) return
+
+    try {
+      const selection = window.getSelection()
+      const range = document.createRange()
+
+      // Find the target node in the updated DOM
+      const walker = document.createTreeWalker(editorRef.current, NodeFilter.SHOW_TEXT, null, false)
+
+      let currentNode = walker.nextNode()
+      let currentOffset = 0
+
+      while (currentNode) {
+        const nodeLength = currentNode.textContent?.length || 0
+
+        if (currentNode === targetNode || currentOffset + nodeLength >= offset) {
+          const finalOffset =
+            currentNode === targetNode ? Math.min(offset, nodeLength) : Math.min(offset - currentOffset, nodeLength)
+
+          range.setStart(currentNode, finalOffset)
+          range.setEnd(currentNode, finalOffset)
+
+          selection?.removeAllRanges()
+          selection?.addRange(range)
+          break
+        }
+
+        currentOffset += nodeLength
+        currentNode = walker.nextNode()
+      }
+    } catch (error) {
+      // Fallback: place cursor at the end
+      const selection = window.getSelection()
+      const range = document.createRange()
+      range.selectNodeContents(editorRef.current)
+      range.collapse(false)
+      selection?.removeAllRanges()
+      selection?.addRange(range)
     }
   }
 
@@ -171,7 +233,16 @@ export function RichTextEditor({
         style={{ minHeight }}
         onInput={handleInput}
         onFocus={() => setIsFocused(true)}
-        onBlur={() => setIsFocused(false)}
+        onBlur={() => {
+          setIsFocused(false)
+          // Ensure content is synced when leaving the field
+          if (editorRef.current) {
+            const sanitizedContent = sanitizeHtml(editorRef.current.innerHTML)
+            if (sanitizedContent !== value) {
+              onChange(sanitizedContent)
+            }
+          }
+        }}
         dangerouslySetInnerHTML={{
           __html: value || (isFocused ? "" : `<span style="color: hsl(var(--muted-foreground))">${placeholder}</span>`),
         }}
