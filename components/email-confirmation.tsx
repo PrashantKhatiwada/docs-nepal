@@ -4,6 +4,7 @@ import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
+import { Input } from "@/components/ui/input"
 import { Mail, CheckCircle, Clock, RefreshCw, ArrowRight } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 import { neonAuth } from "@/lib/neon-auth"
@@ -16,9 +17,11 @@ interface EmailConfirmationProps {
 
 export function EmailConfirmation({ email, onConfirmed, onSkip }: EmailConfirmationProps) {
   const [isResending, setIsResending] = useState(false)
+  const [isVerifying, setIsVerifying] = useState(false)
   const [resendCount, setResendCount] = useState(0)
   const [timeLeft, setTimeLeft] = useState(0)
   const [isConfirmed, setIsConfirmed] = useState(false)
+  const [verificationCode, setVerificationCode] = useState("")
   const { toast } = useToast()
 
   // Countdown timer for resend button
@@ -58,9 +61,9 @@ export function EmailConfirmation({ email, onConfirmed, onSkip }: EmailConfirmat
 
     setIsResending(true)
     try {
-      const { error } = await neonAuth.sendVerificationEmail({
+      const { error } = await neonAuth.emailOtp.sendVerificationOtp({
         email,
-        callbackURL: `${window.location.origin}/confirm-email`,
+        type: "email-verification",
       })
 
       if (error) {
@@ -82,6 +85,48 @@ export function EmailConfirmation({ email, onConfirmed, onSkip }: EmailConfirmat
       })
     } finally {
       setIsResending(false)
+    }
+  }
+
+  const handleVerifyCode = async () => {
+    const code = verificationCode.trim()
+    if (!code) {
+      toast({
+        title: "Code required",
+        description: "Please enter the verification code sent to your email.",
+        variant: "destructive",
+      })
+      return
+    }
+
+    setIsVerifying(true)
+    try {
+      const { error } = await neonAuth.emailOtp.verifyEmail({
+        email,
+        otp: code,
+      })
+
+      if (error) {
+        throw error
+      }
+
+      setIsConfirmed(true)
+      toast({
+        title: "Email verified",
+        description: "Your email is now verified.",
+      })
+
+      if (onConfirmed) {
+        setTimeout(onConfirmed, 1500)
+      }
+    } catch (error: any) {
+      toast({
+        title: "Invalid code",
+        description: error.message || "The verification code is incorrect or expired.",
+        variant: "destructive",
+      })
+    } finally {
+      setIsVerifying(false)
     }
   }
 
@@ -119,8 +164,32 @@ export function EmailConfirmation({ email, onConfirmed, onSkip }: EmailConfirmat
       </CardHeader>
       <CardContent className="space-y-6">
         <div className="text-center space-y-2">
-          <p className="text-muted-foreground">We've sent a confirmation email to:</p>
+          <p className="text-muted-foreground">We've sent a verification code to:</p>
           <p className="font-medium text-primary">{email}</p>
+        </div>
+
+        <div className="space-y-3">
+          <label htmlFor="verification-code" className="text-sm font-medium">
+            Verification code
+          </label>
+          <Input
+            id="verification-code"
+            type="text"
+            value={verificationCode}
+            onChange={(e) => setVerificationCode(e.target.value)}
+            placeholder="Enter code from your email"
+            autoComplete="one-time-code"
+          />
+          <Button className="w-full" onClick={handleVerifyCode} disabled={isVerifying}>
+            {isVerifying ? (
+              <>
+                <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+                Verifying...
+              </>
+            ) : (
+              "Verify Code"
+            )}
+          </Button>
         </div>
 
         <div className="bg-muted/30 p-4 rounded-lg space-y-3">
@@ -130,9 +199,9 @@ export function EmailConfirmation({ email, onConfirmed, onSkip }: EmailConfirmat
           </div>
           <ol className="text-sm text-muted-foreground space-y-2 ml-6">
             <li>1. Check your email inbox</li>
-            <li>2. Look for an email from DocsNepal</li>
-            <li>3. Click the confirmation link</li>
-            <li>4. Return here to continue</li>
+            <li>2. Find the verification code from DocsNepal</li>
+            <li>3. Enter the code above</li>
+            <li>4. Click Verify Code</li>
           </ol>
         </div>
 
