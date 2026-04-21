@@ -10,6 +10,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Mail, Lock, User, Eye, EyeOff, Loader2 } from "lucide-react"
 import Link from "next/link"
 import { useAuth } from "@/lib/auth"
+import { neonAuth } from "@/lib/neon-auth"
 import { useRouter } from "next/navigation"
 import { useToast } from "@/hooks/use-toast"
 
@@ -22,6 +23,17 @@ export default function LoginPage() {
   const { signIn, signUp } = useAuth()
   const router = useRouter()
   const { toast } = useToast()
+
+  const sendVerificationCode = async (email: string) => {
+    const { error } = await neonAuth.emailOtp.sendVerificationOtp({
+      email,
+      type: "email-verification",
+    })
+
+    if (error) {
+      throw new Error(error.message)
+    }
+  }
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -41,6 +53,22 @@ export default function LoginPage() {
       }, 500)
     } catch (error: any) {
       console.error("Login error:", error)
+      const message = (error?.message || "").toLowerCase()
+      if (message.includes("verify") || message.includes("verified")) {
+        try {
+          await sendVerificationCode(loginData.email)
+        } catch (sendError) {
+          console.warn("Failed to resend verification code after login attempt:", sendError)
+        }
+
+        toast({
+          title: "Email not verified",
+          description: "We've sent a new verification code. Please verify your email to continue.",
+        })
+        router.push(`/confirm-email?email=${encodeURIComponent(loginData.email)}`)
+        return
+      }
+
       toast({
         title: "Sign in failed",
         description: error.message || "Please check your credentials and try again.",
@@ -79,6 +107,24 @@ export default function LoginPage() {
       }
     } catch (error: any) {
       console.error("Register error:", error)
+      const message = (error?.message || "").toLowerCase()
+
+      // If account already exists, recover by guiding user into verification flow.
+      if (message.includes("already") || message.includes("exist")) {
+        try {
+          await sendVerificationCode(registerData.email)
+        } catch (sendError) {
+          console.warn("Failed to send verification code for existing user:", sendError)
+        }
+
+        toast({
+          title: "Account already exists",
+          description: "We sent a verification code. Please verify your email, then sign in.",
+        })
+        router.push(`/confirm-email?email=${encodeURIComponent(registerData.email)}`)
+        return
+      }
+
       toast({
         title: "Registration failed",
         description: error.message || "Please try again with different details.",
