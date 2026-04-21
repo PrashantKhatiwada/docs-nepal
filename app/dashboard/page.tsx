@@ -10,10 +10,10 @@ import { useAuth } from "@/lib/auth"
 import { useToast } from "@/hooks/use-toast"
 import { FileText, Trash2, Calendar, Globe } from "lucide-react"
 import Link from "next/link"
-import type { Database } from "@/lib/supabase"
+import type { DocumentRow } from "@/lib/db-types"
 import { SetupRequired } from "./setup-required"
 
-type Document = Database["public"]["Tables"]["documents"]["Row"]
+type Document = DocumentRow
 
 function DashboardContent() {
   const [documents, setDocuments] = useState<Document[]>([])

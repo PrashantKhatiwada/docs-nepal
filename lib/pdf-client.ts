@@ -34,25 +34,37 @@ export async function generatePdfFromElement(element: HTMLElement, options: PdfG
   const { filename = "document.pdf", format = "a4", orientation = "portrait", quality = 1 } = options
 
   try {
-    // Create a clone of the element to avoid modifying the original
-    const clonedElement = element.cloneNode(true) as HTMLElement
+    // Ensure the element is visible and properly rendered
+    if (!element || !element.offsetParent) {
+      throw new Error("Element is not visible or not found")
+    }
 
-    // Convert any rich text content to properly formatted HTML for PDF
-    const richTextElements = clonedElement.querySelectorAll("[dangerouslySetInnerHTML]")
-    richTextElements.forEach((el) => {
-      // Ensure proper styling for PDF generation
-      el.setAttribute("style", (el.getAttribute("style") || "") + "; line-height: 1.6; word-wrap: break-word;")
-    })
+    // Wait for any images to load
+    const images = element.querySelectorAll("img")
+    await Promise.all(
+      Array.from(images).map((img) => {
+        if (img.complete) return Promise.resolve()
+        return new Promise((resolve, reject) => {
+          img.onload = resolve
+          img.onerror = resolve // Don't fail on image errors
+          setTimeout(resolve, 3000) // Timeout after 3 seconds
+        })
+      }),
+    )
 
-    // Create canvas from HTML element
-    const canvas = await html2canvas(clonedElement, {
+    // Create canvas with improved options
+    const canvas = await html2canvas(element, {
       scale: quality,
       useCORS: true,
-      allowTaint: true,
+      allowTaint: false,
       backgroundColor: "#ffffff",
-      width: clonedElement.scrollWidth,
-      height: clonedElement.scrollHeight,
-      onclone: (clonedDoc) => {
+      width: element.scrollWidth,
+      height: element.scrollHeight,
+      logging: false,
+      removeContainer: true,
+      foreignObjectRendering: false,
+      imageTimeout: 5000,
+      onclone: (clonedDoc, clonedElement) => {
         // Ensure all styles are properly applied in the cloned document
         const clonedBody = clonedDoc.body
         clonedBody.style.fontFamily = "Arial, sans-serif"
@@ -60,8 +72,32 @@ export async function generatePdfFromElement(element: HTMLElement, options: PdfG
         clonedBody.style.lineHeight = "1.6"
         clonedBody.style.color = "black"
         clonedBody.style.backgroundColor = "white"
+
+        // Fix any potential styling issues
+        const allElements = clonedElement.querySelectorAll("*")
+        allElements.forEach((el: any) => {
+          // Ensure text is visible
+          if (el.style) {
+            el.style.webkitPrintColorAdjust = "exact"
+            el.style.printColorAdjust = "exact"
+          }
+        })
+
+        // Handle rich text content
+        const richTextElements = clonedElement.querySelectorAll("[dangerouslySetInnerHTML]")
+        richTextElements.forEach((el: any) => {
+          if (el.style) {
+            el.style.lineHeight = "1.6"
+            el.style.wordWrap = "break-word"
+          }
+        })
       },
     })
+
+    // Validate canvas
+    if (!canvas || canvas.width === 0 || canvas.height === 0) {
+      throw new Error("Failed to create canvas from element")
+    }
 
     // Get canvas dimensions
     const imgWidth = 210 // A4 width in mm
@@ -78,15 +114,18 @@ export async function generatePdfFromElement(element: HTMLElement, options: PdfG
 
     let position = 0
 
+    // Convert canvas to image data
+    const imgData = canvas.toDataURL("image/png", 1.0)
+
     // Add first page
-    pdf.addImage(canvas.toDataURL("image/png"), "PNG", 0, position, imgWidth, imgHeight)
+    pdf.addImage(imgData, "PNG", 0, position, imgWidth, imgHeight, undefined, "FAST")
     heightLeft -= pageHeight
 
     // Add additional pages if content is longer than one page
     while (heightLeft >= 0) {
       position = heightLeft - imgHeight
       pdf.addPage()
-      pdf.addImage(canvas.toDataURL("image/png"), "PNG", 0, position, imgWidth, imgHeight)
+      pdf.addImage(imgData, "PNG", 0, position, imgWidth, imgHeight, undefined, "FAST")
       heightLeft -= pageHeight
     }
 

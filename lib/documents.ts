@@ -1,190 +1,104 @@
-import { supabase } from "./supabase"
-import type { Database } from "./supabase"
+import { neonAuth } from "./neon-auth"
+import type { DocumentInsert, DocumentRow, DocumentUpdate } from "./db-types"
 
-type Document = Database["public"]["Tables"]["documents"]["Row"]
-type DocumentInsert = Database["public"]["Tables"]["documents"]["Insert"]
-type DocumentUpdate = Database["public"]["Tables"]["documents"]["Update"]
+async function getAuthHeaders() {
+  const { data, error } = await neonAuth.getSession()
+  if (error) {
+    throw new Error(error.message)
+  }
 
-export async function saveDocument(document: Omit<DocumentInsert, "user_id">) {
-  try {
-    const {
-      data: { user },
-      error: userError,
-    } = await supabase.auth.getUser()
+  const token = (data?.session as any)?.token || (data?.session as any)?.accessToken
+  if (!token) {
+    throw new Error("User not authenticated")
+  }
 
-    if (userError || !user) {
-      throw new Error("User not authenticated")
-    }
-
-    const { data, error } = await supabase
-      .from("documents")
-      .insert({
-        ...document,
-        user_id: user.id,
-      })
-      .select()
-      .single()
-
-    if (error) {
-      // Check if the error is because the table doesn't exist
-      if (error.code === "PGRST116") {
-        console.warn("Documents table doesn't exist yet.")
-        throw new Error("Database setup required. Please run the setup scripts first.")
-      }
-      console.error("Error saving document:", error)
-      throw new Error(error.message)
-    }
-
-    return data
-  } catch (error) {
-    console.error("Error in saveDocument:", error)
-    throw error
+  return {
+    "Content-Type": "application/json",
+    Authorization: `Bearer ${token}`,
   }
 }
 
-// Update the getUserDocuments function to handle the case where the table doesn't exist
-export async function getUserDocuments() {
+async function parseResponse<T>(response: Response): Promise<T> {
+  if (!response.ok) {
+    const payload = await response.json().catch(() => ({}))
+    throw new Error(payload.error || "Request failed")
+  }
+
+  return response.json()
+}
+
+export async function saveDocument(document: DocumentInsert): Promise<DocumentRow> {
+  const headers = await getAuthHeaders()
+  const response = await fetch("/api/documents", {
+    method: "POST",
+    headers,
+    body: JSON.stringify(document),
+  })
+  return parseResponse<DocumentRow>(response)
+}
+
+export async function getUserDocuments(): Promise<DocumentRow[]> {
   try {
-    const {
-      data: { user },
-      error: userError,
-    } = await supabase.auth.getUser()
-
-    if (userError || !user) {
-      throw new Error("User not authenticated")
-    }
-
-    const { data, error } = await supabase
-      .from("documents")
-      .select("*")
-      .eq("user_id", user.id)
-      .order("created_at", { ascending: false })
-
-    if (error) {
-      // Check if the error is because the table doesn't exist
-      if (error.code === "PGRST116" || error.message.includes("does not exist")) {
-        console.warn("Documents table doesn't exist yet. Returning empty array.")
-        return []
-      }
-      console.error("Error getting user documents:", error)
-      throw new Error(error.message)
-    }
-
-    return data || []
+    const headers = await getAuthHeaders()
+    const response = await fetch("/api/documents", {
+      method: "GET",
+      headers,
+    })
+    return await parseResponse<DocumentRow[]>(response)
   } catch (error) {
-    console.error("Error in getUserDocuments:", error)
-    // Return empty array instead of throwing error
+    console.warn("Failed to load user documents:", error)
     return []
   }
 }
 
-export async function updateDocument(id: string, updates: DocumentUpdate) {
-  try {
-    const {
-      data: { user },
-      error: userError,
-    } = await supabase.auth.getUser()
-
-    if (userError || !user) {
-      throw new Error("User not authenticated")
-    }
-
-    const { data, error } = await supabase
-      .from("documents")
-      .update(updates)
-      .eq("id", id)
-      .eq("user_id", user.id)
-      .select()
-      .single()
-
-    if (error) {
-      // Check if the error is because the table doesn't exist
-      if (error.code === "PGRST116") {
-        console.warn("Documents table doesn't exist yet.")
-        throw new Error("Database setup required. Please run the setup scripts first.")
-      }
-      console.error("Error updating document:", error)
-      throw new Error(error.message)
-    }
-
-    return data
-  } catch (error) {
-    console.error("Error in updateDocument:", error)
-    throw error
-  }
+export async function getDocumentById(id: string): Promise<DocumentRow> {
+  const headers = await getAuthHeaders()
+  const response = await fetch(`/api/documents/${id}`, {
+    method: "GET",
+    headers,
+  })
+  return parseResponse<DocumentRow>(response)
 }
 
-export async function deleteDocument(id: string) {
-  try {
-    const {
-      data: { user },
-      error: userError,
-    } = await supabase.auth.getUser()
-
-    if (userError || !user) {
-      throw new Error("User not authenticated")
-    }
-
-    const { error } = await supabase.from("documents").delete().eq("id", id).eq("user_id", user.id)
-
-    if (error) {
-      // Check if the error is because the table doesn't exist
-      if (error.code === "PGRST116") {
-        console.warn("Documents table doesn't exist yet.")
-        return // Just return silently if table doesn't exist
-      }
-      console.error("Error deleting document:", error)
-      throw new Error(error.message)
-    }
-  } catch (error) {
-    console.error("Error in deleteDocument:", error)
-    throw error
-  }
+export async function updateDocument(id: string, updates: DocumentUpdate): Promise<DocumentRow> {
+  const headers = await getAuthHeaders()
+  const response = await fetch(`/api/documents/${id}`, {
+    method: "PATCH",
+    headers,
+    body: JSON.stringify(updates),
+  })
+  return parseResponse<DocumentRow>(response)
 }
 
-export async function trackTemplateUsage(templateId: string) {
+export async function deleteDocument(id: string): Promise<void> {
+  const headers = await getAuthHeaders()
+  const response = await fetch(`/api/documents/${id}`, {
+    method: "DELETE",
+    headers,
+  })
+  await parseResponse<{ ok: boolean }>(response)
+}
+
+export async function trackTemplateUsage(templateId: string): Promise<void> {
   try {
-    const {
-      data: { user },
-      error: userError,
-    } = await supabase.auth.getUser()
-
-    if (userError || !user) {
-      console.warn("User not authenticated, skipping template usage tracking")
-      return
-    }
-
-    const { error } = await supabase.from("template_usage").insert({
-      template_id: templateId,
-      user_id: user.id,
+    const headers = await getAuthHeaders()
+    const response = await fetch("/api/template-usage", {
+      method: "POST",
+      headers,
+      body: JSON.stringify({ template_id: templateId }),
     })
-
-    if (error) {
-      console.warn("Template usage tracking failed (table may not exist):", error.message)
-    }
+    await parseResponse<{ ok: boolean }>(response)
   } catch (error) {
-    console.warn("Error in trackTemplateUsage:", error)
+    console.warn("Template usage tracking failed:", error)
   }
 }
 
-export async function getTemplateStats() {
+export async function getTemplateStats(): Promise<Record<string, number>> {
   try {
-    const { data, error } = await supabase.from("template_usage").select("template_id")
-
-    if (error) {
-      console.warn("Template stats not available (table may not exist):", error.message)
-      return {}
-    }
-
-    // Count usage per template
-    const stats = (data || []).reduce((acc: Record<string, number>, item) => {
-      acc[item.template_id] = (acc[item.template_id] || 0) + 1
-      return acc
-    }, {})
-
-    return stats
+    const response = await fetch("/api/template-usage")
+    return await parseResponse<Record<string, number>>(response)
   } catch (error) {
-    console.warn("Error in getTemplateStats:", error)
+    console.warn("Template stats not available:", error)
     return {}
   }
 }

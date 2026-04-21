@@ -2,39 +2,27 @@
 
 import { useAuth } from "@/lib/auth"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { supabase } from "@/lib/supabase"
+import { neonAuth } from "@/lib/neon-auth"
 import { useEffect, useState } from "react"
 import { Button } from "@/components/ui/button"
 
 export function DebugAuth() {
   const { user, loading, signOut } = useAuth()
-  const [supabaseStatus, setSupabaseStatus] = useState<string>("checking...")
+  const [authStatus, setAuthStatus] = useState<string>("checking...")
   const [authSession, setAuthSession] = useState<any>(null)
 
   useEffect(() => {
-    const checkSupabase = async () => {
+    const checkAuth = async () => {
       try {
-        // Check if we can connect to Supabase
-        const { data, error } = await supabase.from("users").select("count").limit(1)
-        if (error) {
-          if (error.code === "PGRST116") {
-            setSupabaseStatus("Connected (table 'users' doesn't exist)")
-          } else {
-            setSupabaseStatus(`Error: ${error.message}`)
-          }
-        } else {
-          setSupabaseStatus("Connected")
-        }
-
-        // Check current session
-        const { data: sessionData } = await supabase.auth.getSession()
-        setAuthSession(sessionData.session)
+        const { data, error } = await neonAuth.getSession()
+        setAuthStatus(error ? `Error: ${error.message}` : "Connected")
+        setAuthSession(data?.session ?? null)
       } catch (error: any) {
-        setSupabaseStatus(`Connection failed: ${error.message}`)
+        setAuthStatus(`Connection failed: ${error.message}`)
       }
     }
 
-    checkSupabase()
+    checkAuth()
   }, [])
 
   // Only show in development
@@ -50,7 +38,7 @@ export function DebugAuth() {
       <CardContent className="text-xs">
         <div className="space-y-1">
           <p>
-            <strong>Supabase:</strong> {supabaseStatus}
+            <strong>Neon Auth:</strong> {authStatus}
           </p>
           <p>
             <strong>Loading:</strong> {loading ? "Yes" : "No"}
@@ -77,8 +65,7 @@ export function DebugAuth() {
           <p>
             <strong>Env Check:</strong>
           </p>
-          <p className="text-xs">URL: {process.env.NEXT_PUBLIC_SUPABASE_URL ? "✓" : "✗"}</p>
-          <p className="text-xs">Key: {process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ? "✓" : "✗"}</p>
+          <p className="text-xs">Auth URL: {process.env.NEXT_PUBLIC_NEON_AUTH_URL ? "✓" : "✗"}</p>
 
           <div className="pt-2">
             <Button variant="destructive" size="sm" className="w-full text-xs" onClick={signOut}>

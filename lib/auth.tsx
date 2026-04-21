@@ -2,8 +2,7 @@
 
 import type React from "react"
 import { createContext, useContext, useEffect, useState } from "react"
-import { supabase } from "./supabase"
-import type { User as SupabaseUser } from "@supabase/supabase-js"
+import { neonAuth } from "./neon-auth"
 
 export interface User {
   id: string
@@ -39,136 +38,50 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     let mounted = true
-
-    // Get initial session
-    const getInitialSession = async () => {
+    const loadSession = async () => {
       try {
-        const {
-          data: { session },
-          error,
-        } = await supabase.auth.getSession()
-
+        const { data, error } = await neonAuth.getSession()
         if (error) {
-          console.error("Error getting session:", error)
+          console.error("Error loading Neon Auth session:", error)
           if (mounted) setLoading(false)
           return
         }
 
-        if (session?.user && mounted) {
-          await setUserFromSupabase(session.user)
+        if (data?.user && mounted) {
+          setUserFromNeon(data.user)
+        } else if (mounted) {
+          setUser(null)
         }
-
-        if (mounted) setLoading(false)
-      } catch (error) {
-        console.error("Error in getInitialSession:", error)
+      } finally {
         if (mounted) setLoading(false)
       }
     }
 
-    getInitialSession()
-
-    // Listen for auth changes
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange(async (event, session) => {
-      console.log("Auth state changed:", event, session?.user?.email)
-
-      if (event === "SIGNED_IN" && session?.user && mounted) {
-        console.log("User signed in, setting user state")
-        await setUserFromSupabase(session.user)
-      } else if (event === "SIGNED_OUT" && mounted) {
-        console.log("User signed out, clearing user state")
-        setUser(null)
-      } else if (event === "TOKEN_REFRESHED" && session?.user && mounted) {
-        console.log("Token refreshed, updating user state")
-        await setUserFromSupabase(session.user)
-      }
-
-      if (mounted) setLoading(false)
-    })
-
+    loadSession()
     return () => {
       mounted = false
-      subscription.unsubscribe()
     }
   }, [])
 
-  const setUserFromSupabase = async (supabaseUser: SupabaseUser) => {
+  const setUserFromNeon = (neonUser: any) => {
     try {
-      console.log("Setting user from Supabase:", supabaseUser.email)
-
-      // Create a simple user object from Supabase user data
-      const simpleUser: User = {
-        id: supabaseUser.id,
-        email: supabaseUser.email!,
-        name:
-          supabaseUser.user_metadata?.full_name ||
-          supabaseUser.user_metadata?.name ||
-          supabaseUser.email!.split("@")[0],
-        avatar: supabaseUser.user_metadata?.avatar_url,
-        provider: (supabaseUser.app_metadata?.provider as "google" | "email") || "email",
-        emailConfirmed: !!supabaseUser.email_confirmed_at,
-      }
-
-      // Try to get or create user profile, but don't fail if table doesn't exist
-      try {
-        const { data: profile, error } = await supabase.from("users").select("*").eq("id", supabaseUser.id).single()
-
-        if (error && error.code === "PGRST116") {
-          // User doesn't exist, try to create profile
-          console.log("Creating new user profile for:", supabaseUser.email)
-          const { data: newProfile, error: insertError } = await supabase
-            .from("users")
-            .insert({
-              id: supabaseUser.id,
-              email: supabaseUser.email!,
-              name: simpleUser.name,
-              avatar_url: simpleUser.avatar,
-              provider: simpleUser.provider,
-            })
-            .select()
-            .single()
-
-          if (!insertError && newProfile) {
-            console.log("User profile created successfully")
-            setUser({
-              id: newProfile.id,
-              email: newProfile.email,
-              name: newProfile.name,
-              avatar: newProfile.avatar_url || undefined,
-              provider: newProfile.provider as "google" | "email",
-              emailConfirmed: simpleUser.emailConfirmed,
-            })
-            return
-          }
-        } else if (!error && profile) {
-          console.log("User profile found, setting user state")
-          setUser({
-            id: profile.id,
-            email: profile.email,
-            name: profile.name,
-            avatar: profile.avatar_url || undefined,
-            provider: profile.provider as "google" | "email",
-            emailConfirmed: simpleUser.emailConfirmed,
-          })
-          return
-        }
-      } catch (dbError: any) {
-        console.warn("Database table not ready, using simple auth:", dbError.message)
-      }
-
-      // Fallback: set user from Supabase data directly
-      console.log("Using fallback user data")
-      setUser(simpleUser)
+      setUser({
+        id: neonUser.id,
+        email: neonUser.email,
+        name: neonUser.name || neonUser.email?.split("@")[0] || "User",
+        avatar: neonUser.image || undefined,
+        provider: "email",
+        emailConfirmed: !!neonUser.emailVerified,
+      })
     } catch (error) {
-      console.error("Error setting user from Supabase:", error)
+      console.error("Error setting user from Neon:", error)
     }
   }
 
   const signIn = async (email: string, password: string) => {
     setLoading(true)
     try {
-      const result = await supabase.auth.signInWithPassword({
+      const result = await neonAuth.signIn.email({
         email,
         password,
       })
@@ -176,8 +89,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (result.error) {
         throw new Error(result.error.message)
       }
-
-      // Don't need to manually set user here, the auth state change listener will handle it
+      if (result.data?.user) {
+        setUserFromNeon(result.data.user)
+      }
     } catch (error: any) {
       console.error("Sign in error:", error)
       throw new Error(error.message || "Invalid credentials")
@@ -189,22 +103,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const signUp = async (email: string, password: string, name: string) => {
     setLoading(true)
     try {
-      const result = await supabase.auth.signUp({
+      const result = await neonAuth.signUp.email({
         email,
         password,
-        options: {
-          data: {
-            full_name: name,
-          },
-        },
+        name,
       })
 
       if (result.error) {
         throw new Error(result.error.message)
       }
 
-      // Check if email confirmation is needed
-      const needsConfirmation = !result.data.session && result.data.user && !result.data.user.email_confirmed_at
+      const needsConfirmation = !!result.data?.user && !result.data.user.emailVerified
 
       return { needsConfirmation: !!needsConfirmation }
     } catch (error: any) {
@@ -216,30 +125,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }
 
   const signInWithGoogle = async () => {
-    setLoading(true)
-    try {
-      const result = await supabase.auth.signInWithOAuth({
-        provider: "google",
-        options: {
-          redirectTo: `${window.location.origin}/auth/callback`,
-        },
-      })
-
-      if (result.error) {
-        throw new Error(result.error.message)
-      }
-
-      // Don't set loading to false here as the redirect will happen
-    } catch (error: any) {
-      console.error("Google sign in error:", error)
-      setLoading(false)
-      throw new Error(error.message || "Google sign-in failed")
-    }
+    throw new Error("Google sign-in is not configured for Neon Auth yet.")
   }
 
   const signOut = async () => {
     try {
-      await supabase.auth.signOut()
+      await neonAuth.signOut()
       setUser(null)
     } catch (error) {
       console.error("Sign out error:", error)

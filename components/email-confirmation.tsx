@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Mail, CheckCircle, Clock, RefreshCw, ArrowRight } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
-import { supabase } from "@/lib/supabase"
+import { neonAuth } from "@/lib/neon-auth"
 
 interface EmailConfirmationProps {
   email: string
@@ -33,10 +33,8 @@ export function EmailConfirmation({ email, onConfirmed, onSkip }: EmailConfirmat
   useEffect(() => {
     const checkConfirmation = async () => {
       try {
-        const {
-          data: { user },
-        } = await supabase.auth.getUser()
-        if (user?.email_confirmed_at) {
+        const { data } = await neonAuth.getSession()
+        if (data?.user?.emailVerified) {
           setIsConfirmed(true)
           if (onConfirmed) {
             setTimeout(onConfirmed, 2000) // Give user time to see success message
@@ -60,9 +58,9 @@ export function EmailConfirmation({ email, onConfirmed, onSkip }: EmailConfirmat
 
     setIsResending(true)
     try {
-      const { error } = await supabase.auth.resend({
-        type: "signup",
-        email: email,
+      const { error } = await neonAuth.sendVerificationEmail({
+        email,
+        callbackURL: `${window.location.origin}/confirm-email`,
       })
 
       if (error) {

@@ -6,7 +6,6 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Separator } from "@/components/ui/separator"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Mail, Lock, User, Eye, EyeOff, Loader2 } from "lucide-react"
 import Link from "next/link"
@@ -20,7 +19,7 @@ export default function LoginPage() {
   const [loginData, setLoginData] = useState({ email: "", password: "" })
   const [registerData, setRegisterData] = useState({ name: "", email: "", password: "" })
 
-  const { signIn, signUp, signInWithGoogle } = useAuth()
+  const { signIn, signUp } = useAuth()
   const router = useRouter()
   const { toast } = useToast()
 
@@ -86,28 +85,6 @@ export default function LoginPage() {
         variant: "destructive",
       })
     } finally {
-      setIsLoading(false)
-    }
-  }
-
-  const handleGoogleSignIn = async () => {
-    setIsLoading(true)
-
-    try {
-      await signInWithGoogle()
-
-      // Don't redirect here as Google auth will handle the redirect
-      toast({
-        title: "Redirecting...",
-        description: "Please wait while we sign you in with Google.",
-      })
-    } catch (error: any) {
-      console.error("Google sign in error:", error)
-      toast({
-        title: "Google sign-in failed",
-        description: error.message || "Please try again.",
-        variant: "destructive",
-      })
       setIsLoading(false)
     }
   }

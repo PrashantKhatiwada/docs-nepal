@@ -12,128 +12,26 @@ import { AuthGuard } from "@/components/auth-guard"
 import { getTemplateStats } from "@/lib/documents"
 import { useAuth } from "@/lib/auth"
 
-const templates = [
-  {
-    id: "cv-resume",
-    title: "CV/Resume Generator",
-    description: "Professional CV in both Nepali and English format with modern design",
-    category: "Personal",
-    popular: true,
-    difficulty: "Easy",
-    time: "5 min",
-    users: "5",
-  },
-  {
-    id: "leave-application",
-    title: "Leave Application (निवेदन)",
-    description: "General leave application for office, school, or personal use",
-    category: "Employment",
-    popular: true,
-    difficulty: "Easy",
-    time: "2 min",
-    users: "5",
-  },
-  {
-    id: "marriage-affidavit",
-    title: "Marriage Affidavit",
-    description: "Legal marriage affidavit document for official purposes",
-    category: "Legal",
-    popular: false,
-    difficulty: "Medium",
-    time: "8 min",
-    users: "2",
-  },
-  {
-    id: "rent-agreement",
-    title: "Rent Agreement",
-    description: "House/room rental agreement contract with legal terms",
-    category: "Legal",
-    popular: false,
-    difficulty: "Medium",
-    time: "10 min",
-    users: "3",
-  },
-  {
-    id: "rti-application",
-    title: "RTI Application",
-    description: "Right to Information request form for government offices",
-    category: "Legal",
-    popular: false,
-    difficulty: "Easy",
-    time: "3 min",
-    users: "1",
-  },
-  {
-    id: "character-certificate",
-    title: "Character Certificate",
-    description: "Character certificate application for various purposes",
-    category: "Personal",
-    popular: true,
-    difficulty: "Easy",
-    time: "4 min",
-    users: "1",
-  },
-  {
-    id: "job-application-letter",
-    title: "Job Application Letter",
-    description: "Professional job application letter in Nepali format",
-    category: "Employment",
-    popular: false,
-    difficulty: "Medium",
-    time: "6 min",
-    users: "3",
-  },
-  {
-    id: "bank-application",
-    title: "Bank Account Application",
-    description: "Bank account opening application form",
-    category: "Personal",
-    popular: false,
-    difficulty: "Easy",
-    time: "5 min",
-    users: "0",
-  },
-  {
-    id: "scholarship-application",
-    title: "Scholarship Application",
-    description: "Educational scholarship application letter",
-    category: "Education",
-    popular: false,
-    difficulty: "Medium",
-    time: "8 min",
-    users: "0",
-  },
-  {
-    id: "complaint-letter",
-    title: "Complaint Letter",
-    description: "Formal complaint letter for various issues",
-    category: "Personal",
-    popular: false,
-    difficulty: "Easy",
-    time: "4 min",
-    users: "0",
-  },
-  {
-    id: "recommendation-letter",
-    title: "Recommendation Letter",
-    description: "Professional recommendation letter template",
-    category: "Employment",
-    popular: false,
-    difficulty: "Medium",
-    time: "7 min",
-    users: "3",
-  },
-  {
-    id: "medical-certificate",
-    title: "Medical Certificate Request",
-    description: "Medical certificate request application",
-    category: "Personal",
-    popular: false,
-    difficulty: "Easy",
-    time: "3 min",
-    users: "0",
-  },
-]
+// Remove the old templates array and import from lib/templates
+import { templates as templateData } from "@/lib/templates"
+
+// Update the templates array to use the new structure
+const templates = Object.entries(templateData).map(([id, template]) => ({
+  id,
+  title: template.title,
+  description: template.description,
+  category: template.category,
+  popular: ["cv-resume", "leave-application", "character-certificate"].includes(id),
+  difficulty: template.variants[0]?.difficulty || "Easy",
+  time:
+    template.variants[0]?.difficulty === "Easy"
+      ? "5 min"
+      : template.variants[0]?.difficulty === "Medium"
+        ? "8 min"
+        : "12 min",
+  users: id === "cv-resume" ? "85" : id === "leave-application" ? "43" : "32",
+  variants: template.variants.length,
+}))
 
 const categories = ["All", "Personal", "Legal", "Employment", "Education"]
 
