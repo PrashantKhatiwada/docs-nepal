@@ -135,6 +135,64 @@ export default function LoginPage() {
     }
   }
 
+  const handleForgotPassword = async () => {
+    if (!loginData.email) {
+      toast({
+        title: "Email required",
+        description: "Enter your email first, then click reset password.",
+        variant: "destructive",
+      })
+      return
+    }
+
+    try {
+      const { error } = await neonAuth.requestPasswordReset({
+        email: loginData.email,
+        redirectTo: `${window.location.origin}/login`,
+      })
+      if (error) {
+        throw new Error(error.message)
+      }
+
+      toast({
+        title: "Reset link sent",
+        description: "Check your email for password reset instructions.",
+      })
+    } catch (error: any) {
+      toast({
+        title: "Could not send reset link",
+        description: error.message || "Please try again in a moment.",
+        variant: "destructive",
+      })
+    }
+  }
+
+  const handleResendVerificationFromLogin = async () => {
+    if (!loginData.email) {
+      toast({
+        title: "Email required",
+        description: "Enter your email first to resend the verification code.",
+        variant: "destructive",
+      })
+      return
+    }
+
+    try {
+      await sendVerificationCode(loginData.email)
+      toast({
+        title: "Verification code sent",
+        description: "We sent a fresh code to your email.",
+      })
+      router.push(`/confirm-email?email=${encodeURIComponent(loginData.email)}`)
+    } catch (error: any) {
+      toast({
+        title: "Could not send verification code",
+        description: error.message || "Please try again.",
+        variant: "destructive",
+      })
+    }
+  }
+
   return (
     <div className="container mx-auto py-12 px-4">
       <div className="max-w-md mx-auto">
@@ -205,6 +263,24 @@ export default function LoginPage() {
                       "Sign In"
                     )}
                   </Button>
+                  <div className="flex items-center justify-between text-xs">
+                    <button
+                      type="button"
+                      onClick={handleForgotPassword}
+                      className="text-primary hover:underline"
+                      disabled={isLoading}
+                    >
+                      Forgot password?
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleResendVerificationFromLogin}
+                      className="text-primary hover:underline"
+                      disabled={isLoading}
+                    >
+                      Resend verification code
+                    </button>
+                  </div>
                 </form>
 {/* 
                 <div className="relative">

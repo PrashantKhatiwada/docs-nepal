@@ -118,8 +118,8 @@ export default function AboutPage() {
           <div>
             <h3 className="font-semibold mb-3">Is DocsNepal legally compliant?</h3>
             <p className="text-muted-foreground text-sm mb-6">
-              Yes, all our templates are created by legal experts and follow official Nepali government formats and
-              requirements. However, we recommend consulting with a lawyer for complex legal matters.
+              Our templates are designed to follow common Nepali document formats. For high-stakes legal matters, we
+              recommend consulting a qualified legal professional.
             </p>
           </div>
           <div>
@@ -132,8 +132,8 @@ export default function AboutPage() {
           <div>
             <h3 className="font-semibold mb-3">How accurate are the document formats?</h3>
             <p className="text-muted-foreground text-sm mb-6">
-              Our templates are regularly updated to match current official formats. We work with legal professionals
-              and government liaisons to ensure accuracy.
+              We continuously improve templates based on user feedback and practical usage. Please review every
+              generated document before official submission.
             </p>
           </div>
           <div>
@@ -153,8 +153,7 @@ export default function AboutPage() {
           <div>
             <h3 className="font-semibold mb-3">What if I need help with a document?</h3>
             <p className="text-muted-foreground text-sm mb-6">
-              We offer comprehensive guides for each template, and our support team is available via email. Premium
-              users get priority support.
+              Our support team is available via email for guidance on template usage, account issues, and troubleshooting.
             </p>
           </div>
         </div>

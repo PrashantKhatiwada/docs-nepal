@@ -37,6 +37,15 @@ export function Footer() {
               <Link href="/about" className="block text-sm text-muted-foreground hover:text-primary">
                 About Us
               </Link>
+              <Link href="/support" className="block text-sm text-muted-foreground hover:text-primary">
+                Support
+              </Link>
+              <Link href="/terms" className="block text-sm text-muted-foreground hover:text-primary">
+                Terms
+              </Link>
+              <Link href="/privacy" className="block text-sm text-muted-foreground hover:text-primary">
+                Privacy
+              </Link>
             </div>
           </div>
 
@@ -72,7 +81,7 @@ export function Footer() {
             <div className="space-y-2">
               <div className="flex items-center space-x-2 text-sm text-muted-foreground">
                 <Mail className="h-4 w-4" />
-                <span>support@docnepal.com</span>
+                <span>support@docsnepal.com</span>
               </div>
               <div className="flex items-center space-x-2 text-sm text-muted-foreground">
                 <Phone className="h-4 w-4" />

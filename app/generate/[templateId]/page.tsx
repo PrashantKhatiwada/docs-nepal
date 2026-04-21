@@ -12,6 +12,10 @@ import { Separator } from "@/components/ui/separator"
 import { Download, Eye, FileText, FileType, Loader2, Heart, Save, Edit } from "lucide-react"
 import { useParams, useSearchParams } from "next/navigation"
 import { templates, type TemplateId, type Language } from "@/lib/templates"
+import { validateTemplateForm } from "@/lib/template-validation"
+import { renderTemplatePreview } from "@/lib/template-renderers"
+import { renderMarriageAffidavitPreview } from "@/lib/template-renderers/marriage-affidavit"
+import { trackEvent } from "@/lib/analytics"
 import { useToast } from "@/hooks/use-toast"
 import { LanguageSelector } from "@/components/language-selector"
 import { AuthGuard } from "@/components/auth-guard"
@@ -21,11 +25,12 @@ import { TemplateVariantSelector } from "@/components/template-variant-selector"
 import { PhotoUpload } from "@/components/photo-upload"
 import { RichTextEditor } from "@/components/rich-text-editor"
 import { generatePdfFromElement } from "@/lib/pdf-client"
+import { generateDocxFromElement } from "@/lib/docx-client"
 
 function GenerateDocumentContent() {
   const params = useParams()
   const searchParams = useSearchParams()
-  const templateId = params.templateId as string
+  const templateId = params.templateId as TemplateId
   const editId = searchParams.get("edit")
   const template = templates[templateId as TemplateId]
   const { toast } = useToast()
@@ -37,6 +42,8 @@ function GenerateDocumentContent() {
   const [isGeneratingPdf, setIsGeneratingPdf] = useState(false)
   const [isGeneratingDoc, setIsGeneratingDoc] = useState(false)
   const [isSaving, setIsSaving] = useState(false)
+  const [isAutoSaving, setIsAutoSaving] = useState(false)
+  const [lastSavedAt, setLastSavedAt] = useState<Date | null>(null)
   const [documentId, setDocumentId] = useState<string | null>(editId)
   const [documentTitle, setDocumentTitle] = useState("")
   const [selectedVariant, setSelectedVariant] = useState<string>(template?.variants?.[0]?.id || "")
@@ -44,9 +51,11 @@ function GenerateDocumentContent() {
   useEffect(() => {
     if (editId) {
       loadDocument(editId)
+      trackEvent("document_edit_opened", templateId, { editId })
     } else {
       // Track template usage for new documents
       trackTemplateUsage(templateId)
+      trackEvent("template_started", templateId)
       // Set default variant
       if (template?.variants?.[0]?.id) {
         setSelectedVariant(template.variants[0].id)
@@ -95,8 +104,26 @@ function GenerateDocumentContent() {
     return `${templateName} - ${name}`
   }
 
-  const handleSaveDocument = async () => {
-    setIsSaving(true)
+  const validateCurrentForm = () => {
+    const validation = validateTemplateForm(templateId, formData)
+    if (!validation.success) {
+      toast({
+        title: "Please fix these fields",
+        description: validation.errors.slice(0, 4).join(", "),
+        variant: "destructive",
+      })
+      return false
+    }
+    return true
+  }
+
+  const handleSaveDocument = async (options?: { skipValidation?: boolean; silent?: boolean; auto?: boolean }) => {
+    if (!options?.skipValidation && !validateCurrentForm()) return
+    if (options?.auto) {
+      setIsAutoSaving(true)
+    } else {
+      setIsSaving(true)
+    }
     try {
       const title = generateDocumentTitle()
 
@@ -107,10 +134,12 @@ function GenerateDocumentContent() {
           form_data: formData,
           language: selectedLanguage,
         })
-        toast({
-          title: "Document updated",
-          description: "Your document has been saved successfully",
-        })
+        if (!options?.silent) {
+          toast({
+            title: "Document updated",
+            description: "Your document has been saved successfully",
+          })
+        }
       } else {
         // Save new document
         const savedDoc = await saveDocument({
@@ -120,21 +149,42 @@ function GenerateDocumentContent() {
           language: selectedLanguage,
         })
         setDocumentId(savedDoc.id)
+        if (!options?.silent) {
+          toast({
+            title: "Document saved",
+            description: "Your document has been saved to your dashboard",
+          })
+        }
+      }
+      if (options?.auto) {
+        trackEvent("document_autosaved", templateId, { documentId: documentId ?? null })
+      } else {
+        trackEvent("document_saved", templateId, { documentId: documentId ?? null })
+      }
+      setLastSavedAt(new Date())
+    } catch (error) {
+      if (!options?.silent) {
         toast({
-          title: "Document saved",
-          description: "Your document has been saved to your dashboard",
+          title: "Error",
+          description: "Failed to save document",
+          variant: "destructive",
         })
       }
-    } catch (error) {
-      toast({
-        title: "Error",
-        description: "Failed to save document",
-        variant: "destructive",
-      })
     } finally {
       setIsSaving(false)
+      setIsAutoSaving(false)
     }
   }
+
+  useEffect(() => {
+    if (!template || !Object.keys(formData).length) return
+
+    const timer = setTimeout(() => {
+      handleSaveDocument({ skipValidation: true, silent: true, auto: true })
+    }, 1500)
+
+    return () => clearTimeout(timer)
+  }, [formData, selectedLanguage])
 
   const generateCVPreview = () => {
     const variant = template.variants.find((v) => v.id === selectedVariant)
@@ -1358,238 +1408,28 @@ function GenerateDocumentContent() {
   }
 
   const generateMarriageAffidavitPreview = () => {
-    const variant = template.variants.find((v) => v.id === selectedVariant)
-
-    if (selectedVariant === "detailed") {
-      // Detailed marriage affidavit with more comprehensive information
-      return (
-        <div className="bg-white p-8 text-black min-h-[600px] font-serif">
-          <div className="text-center mb-8">
-            <h1 className="text-xl font-bold">DETAILED MARRIAGE AFFIDAVIT</h1>
-          </div>
-
-          <div className="space-y-4 text-sm">
-            <p>
-              We, <strong>{formData.husbandName || "[Husband's Name]"}</strong>, son of _______, aged _____ years,
-              residing at {formData.husbandAddress || "[Husband's Address]"}, and{" "}
-              <strong>{formData.wifeName || "[Wife's Name]"}</strong>, daughter of _______, aged _____ years, residing
-              at {formData.wifeAddress || "[Wife's Address]"}, do hereby solemnly affirm and declare as follows:
-            </p>
-
-            <div className="space-y-3">
-              <p>
-                <strong>1. MARRIAGE DETAILS:</strong> That we were married to each other on{" "}
-                <strong>{formData.marriageDate || "[Marriage Date]"}</strong> at{" "}
-                <strong>{formData.marriagePlace || "[Marriage Place]"}</strong> according to
-                Hindu/Christian/Muslim/Buddhist rites and ceremonies in the presence of family members and friends.
-              </p>
-
-              <p>
-                <strong>2. MARITAL STATUS:</strong> That at the time of our marriage, I,{" "}
-                {formData.husbandName || "[Husband's Name]"} was unmarried/widower/divorcee and I,{" "}
-                {formData.wifeName || "[Wife's Name]"} was unmarried/widow/divorcee.
-              </p>
-
-              <p>
-                <strong>3. FAMILY BACKGROUND:</strong> That both families were present during the marriage ceremony and
-                gave their full consent and blessings for our union.
-              </p>
-
-              <p>
-                <strong>4. CEREMONY DETAILS:</strong> That our marriage was conducted according to traditional customs
-                and all religious rituals were properly performed in the presence of relatives and friends.
-              </p>
-
-              <p>
-                <strong>5. WITNESSES:</strong> That our marriage was solemnized in the presence of the following
-                witnesses:
-              </p>
-              <div className="ml-4 space-y-1">
-                <p>
-                  a) <strong>{formData.witnessName1 || "[Witness 1 Name]"}</strong> - Relationship: _______, Address:
-                  _______
-                </p>
-                <p>
-                  b) <strong>{formData.witnessName2 || "[Witness 2 Name]"}</strong> - Relationship: _______, Address:
-                  _______
-                </p>
-                <p>c) _______ - Relationship: _______, Address: _______</p>
-                <p>d) _______ - Relationship: _______, Address: _______</p>
-              </div>
-
-              <p>
-                <strong>6. LEGAL PURPOSE:</strong> That we are making this affidavit for the purpose of getting our
-                marriage registered with the appropriate authorities and for all other legal purposes including
-                passport, visa, and other official documentation.
-              </p>
-
-              <p>
-                <strong>7. DECLARATION:</strong> That the contents of this affidavit are true and correct to the best of
-                our knowledge and belief and nothing has been concealed therein.
-              </p>
-            </div>
-
-            <div className="pt-8">
-              <p>
-                <strong>DEPONENTS</strong>
-              </p>
-              <div className="flex justify-between mt-8">
-                <div className="text-center">
-                  <p>___________________________</p>
-                  <p>
-                    <strong>{formData.husbandName || "[Husband's Name]"}</strong>
-                  </p>
-                  <p>(Husband)</p>
-                </div>
-                <div className="text-center">
-                  <p>___________________________</p>
-                  <p>
-                    <strong>{formData.wifeName || "[Wife's Name]"}</strong>
-                  </p>
-                  <p>(Wife)</p>
-                </div>
-              </div>
-              <p className="mt-8 text-center">
-                <strong>VERIFICATION</strong>
-              </p>
-              <p className="mt-4">
-                Verified at _____________ on this <strong>{formData.declarationDate || "[Declaration Date]"}</strong>{" "}
-                that the contents of the above affidavit are true and correct to the best of our knowledge and belief
-                and nothing material has been concealed therein.
-              </p>
-              <div className="flex justify-between mt-6">
-                <div className="text-center">
-                  <p>___________________________</p>
-                  <p>Husband's Signature</p>
-                </div>
-                <div className="text-center">
-                  <p>___________________________</p>
-                  <p>Wife's Signature</p>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      )
-    } else {
-      // Standard marriage affidavit
-      return (
-        <div className="bg-white p-8 text-black min-h-[600px] font-serif">
-          <div className="text-center mb-8">
-            <h1 className="text-xl font-bold">MARRIAGE AFFIDAVIT</h1>
-          </div>
-
-          <div className="space-y-4 text-sm">
-            <p>
-              I, <strong>{formData.husbandName || "[Husband's Name]"}</strong>, son of _______, aged _____ years,
-              residing at {formData.husbandAddress || "[Husband's Address]"}, and I,{" "}
-              <strong>{formData.wifeName || "[Wife's Name]"}</strong>, daughter of _______, aged _____ years, residing
-              at {formData.wifeAddress || "[Wife's Address]"}, do hereby solemnly affirm and declare as follows:
-            </p>
-
-            <div className="space-y-3">
-              <p>
-                1. That we were married to each other on <strong>{formData.marriageDate || "[Marriage Date]"}</strong>{" "}
-                at <strong>{formData.marriagePlace || "[Marriage Place]"}</strong> according to
-                Hindu/Christian/Muslim/Buddhist rites and ceremonies.
-              </p>
-
-              <p>
-                2. That at the time of our marriage, I, {formData.husbandName || "[Husband's Name]"} was
-                unmarried/widower/divorcee and I, {formData.wifeName || "[Wife's Name]"} was unmarried/widow/divorcee.
-              </p>
-
-              <p>3. That our marriage was solemnized in the presence of relatives and friends including:</p>
-              <p className="ml-4">
-                a) <strong>{formData.witnessName1 || "[Witness 1 Name]"}</strong>
-              </p>
-              <p className="ml-4">
-                b) <strong>{formData.witnessName2 || "[Witness 2 Name]"}</strong>
-              </p>
-
-              <p>
-                4. That we are making this affidavit for the purpose of getting our marriage registered and for all
-                legal purposes.
-              </p>
-
-              <p>
-                5. That the contents of this affidavit are true and correct to the best of our knowledge and belief.
-              </p>
-            </div>
-
-            <div className="pt-8">
-              <p>Deponent</p>
-              <div className="flex justify-between mt-8">
-                <div className="text-center">
-                  <p>___________________________</p>
-                  <p>{formData.husbandName || "[Husband's Name]"}</p>
-                </div>
-                <div className="text-center">
-                  <p>___________________________</p>
-                  <p>{formData.wifeName || "[Wife's Name]"}</p>
-                </div>
-              </div>
-              <p className="mt-6">
-                Verified at _____________ on this {formData.declarationDate || "[Declaration Date]"} that the contents
-                of the above affidavit are true and correct to the best of my knowledge and belief.
-              </p>
-            </div>
-          </div>
-        </div>
-      )
-    }
+    return renderMarriageAffidavitPreview(formData, selectedVariant)
   }
 
   const generatePreview = () => {
-    if (templateId === "leave-application") {
-      return generateLeaveApplicationPreview()
-    } else if (templateId === "cv-resume") {
-      return generateCVPreview()
-    } else if (templateId === "marriage-affidavit") {
-      return generateMarriageAffidavitPreview()
-    } else if (templateId === "rent-agreement") {
-      return generateRentAgreementPreview()
-    }
-
-    // Default preview for unhandled templates
-    return (
-      <div className="bg-white p-8 text-black min-h-[600px] font-serif">
-        <div className="text-center mb-8">
-          <h2 className="text-xl font-bold">{template.title.toUpperCase()}</h2>
-        </div>
-        <div className="space-y-4">
-          {Object.entries(formData).map(([key, value]) => (
-            <div key={key} className="flex">
-              <span className="font-semibold min-w-[150px]">
-                {key.replace(/([A-Z])/g, " $1").replace(/^./, (str) => str.toUpperCase())}:
-              </span>
-              <span>{value || "[Not provided]"}</span>
-            </div>
-          ))}
-        </div>
-      </div>
-    )
+    return renderTemplatePreview({
+      templateId,
+      templateTitle: template.title,
+      formData,
+      renderCv: generateCVPreview,
+      renderLeave: generateLeaveApplicationPreview,
+      renderRent: generateRentAgreementPreview,
+      renderMarriage: generateMarriageAffidavitPreview,
+    })
   }
 
   const handleGeneratePdf = async () => {
     try {
       setIsGeneratingPdf(true)
 
-      // Check if required fields are filled
-      if (template.fields) {
-        const missingFields = template.fields
-          .filter((field) => field.required && !formData[field.id])
-          .map((field) => field.label)
-
-        if (missingFields.length > 0) {
-          toast({
-            title: "Missing required fields",
-            description: `Please fill in the following fields: ${missingFields.join(", ")}`,
-            variant: "destructive",
-          })
-          setIsGeneratingPdf(false)
-          return
-        }
+      if (!validateCurrentForm()) {
+        setIsGeneratingPdf(false)
+        return
       }
 
       // Auto-save document before generating PDF
@@ -1640,6 +1480,10 @@ function GenerateDocumentContent() {
         title: "PDF Generated Successfully",
         description: `Your ${template.variants.find((v) => v.id === selectedVariant)?.name || "document"} has been generated in ${selectedLanguage === "nepali" ? "Nepali" : "English"} and downloaded.`,
       })
+      trackEvent("document_exported_pdf", templateId, {
+        variant: selectedVariant,
+        language: selectedLanguage,
+      })
     } catch (error) {
       console.error("Error generating PDF:", error)
       toast({
@@ -1657,27 +1501,39 @@ function GenerateDocumentContent() {
     try {
       setIsGeneratingDoc(true)
 
-      // Check if required fields are filled
-      if (template.fields) {
-        const missingFields = template.fields
-          .filter((field) => field.required && !formData[field.id])
-          .map((field) => field.label)
-
-        if (missingFields.length > 0) {
-          toast({
-            title: "Missing required fields",
-            description: `Please fill in the following fields: ${missingFields.join(", ")}`,
-            variant: "destructive",
-          })
-          setIsGeneratingDoc(false)
-          return
-        }
+      if (!validateCurrentForm()) {
+        setIsGeneratingDoc(false)
+        return
       }
 
-      // Show message about DOC format
+      if (activeTab !== "preview") {
+        setActiveTab("preview")
+        await new Promise((resolve) => setTimeout(resolve, 1000))
+      }
+
+      await new Promise((resolve) => setTimeout(resolve, 500))
+
+      const previewElement = previewRef.current
+      if (!previewElement) {
+        throw new Error("Preview element not found")
+      }
+
+      if (!documentId) {
+        await handleSaveDocument()
+      }
+
+      const languageSuffix = selectedLanguage === "nepali" ? "_NP" : "_EN"
+      const variantSuffix = selectedVariant ? `_${selectedVariant}` : ""
+      const filename = `${template.title.replace(/[^a-zA-Z0-9]/g, "_")}${variantSuffix}${languageSuffix}.docx`
+      await generateDocxFromElement(previewElement, { filename })
+
       toast({
-        title: "DOC Format Coming Soon",
-        description: "We're working on adding DOC format support. Currently only PDF is available.",
+        title: "DOCX Generated Successfully",
+        description: "Your document has been generated and downloaded.",
+      })
+      trackEvent("document_exported_docx", templateId, {
+        variant: selectedVariant,
+        language: selectedLanguage,
       })
     } catch (error) {
       console.error("Error generating DOC:", error)
@@ -1849,6 +1705,11 @@ function GenerateDocumentContent() {
                   <CardTitle>Actions</CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-3">
+                  {isAutoSaving ? (
+                    <p className="text-xs text-muted-foreground">Autosaving...</p>
+                  ) : lastSavedAt ? (
+                    <p className="text-xs text-muted-foreground">Last saved: {lastSavedAt.toLocaleTimeString()}</p>
+                  ) : null}
                   <Button onClick={handleSaveDocument} variant="outline" className="w-full" disabled={isSaving}>
                     {isSaving ? (
                       <>
@@ -1884,7 +1745,7 @@ function GenerateDocumentContent() {
                     ) : (
                       <>
                         <FileType className="h-4 w-4 mr-2" />
-                        Download DOC ({selectedLanguage === "nepali" ? "नेपाली" : "English"})
+                        Download DOCX ({selectedLanguage === "nepali" ? "नेपाली" : "English"})
                       </>
                     )}
                   </Button>

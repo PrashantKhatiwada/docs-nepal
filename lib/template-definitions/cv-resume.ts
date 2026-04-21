@@ -1,0 +1,61 @@
+import type { Template } from "./types"
+
+export const cvResumeTemplate: Template = {
+  title: "CV/Resume Generator",
+  description: "Create a professional CV in Nepali and English format",
+  category: "Personal",
+  supportedLanguages: ["nepali", "english"],
+  variants: [
+    {
+      id: "modern",
+      name: "Modern Professional",
+      description: "Clean, modern design with emphasis on skills and experience",
+      preview: "/placeholder.svg?height=400&width=300&text=Modern+CV",
+      difficulty: "Easy",
+      features: ["Clean layout", "Skills section", "Experience timeline", "Education details"],
+    },
+    {
+      id: "classic",
+      name: "Classic Traditional",
+      description: "Traditional format suitable for government and formal positions",
+      preview: "/placeholder.svg?height=400&width=300&text=Classic+CV",
+      difficulty: "Easy",
+      features: ["Traditional format", "Formal structure", "Government-friendly", "Simple design"],
+    },
+    {
+      id: "detailed",
+      name: "Detailed Professional",
+      description: "Comprehensive format with sections for achievements and references",
+      preview: "/placeholder.svg?height=400&width=300&text=Detailed+CV",
+      difficulty: "Medium",
+      features: ["Comprehensive sections", "Achievement highlights", "Reference section", "Project details"],
+    },
+    {
+      id: "minimal",
+      name: "Minimal Clean",
+      description: "Simple, clean design focusing on essential information only",
+      preview: "/placeholder.svg?height=400&width=300&text=Minimal+CV",
+      difficulty: "Easy",
+      features: ["Minimal design", "Essential info only", "Easy to read", "Quick to fill"],
+    },
+  ],
+  fields: [
+    {
+      id: "photo",
+      label: "Profile Photo",
+      type: "photo",
+      required: false,
+      helpText: "Upload your profile photo (optional)",
+    },
+    { id: "fullName", label: "Full Name", type: "text", required: true },
+    { id: "email", label: "Email Address", type: "email", required: true },
+    { id: "phone", label: "Phone Number", type: "tel", required: true },
+    { id: "address", label: "Address", type: "text", required: true },
+    { id: "objective", label: "Career Objective", type: "richtext", required: false },
+    { id: "education", label: "Education", type: "richtext", required: true },
+    { id: "experience", label: "Work Experience", type: "richtext", required: false },
+    { id: "skills", label: "Skills", type: "richtext", required: true },
+    { id: "achievements", label: "Achievements", type: "richtext", required: false },
+    { id: "references", label: "References", type: "richtext", required: false },
+  ],
+}

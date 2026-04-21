@@ -11,6 +11,7 @@ import Link from "next/link"
 import { AuthGuard } from "@/components/auth-guard"
 import { getTemplateStats } from "@/lib/documents"
 import { useAuth } from "@/lib/auth"
+import { trackEvent } from "@/lib/analytics"
 
 // Remove the old templates array and import from lib/templates
 import { templates as templateData } from "@/lib/templates"
@@ -21,7 +22,7 @@ const templates = Object.entries(templateData).map(([id, template]) => ({
   title: template.title,
   description: template.description,
   category: template.category,
-  popular: ["cv-resume", "leave-application", "character-certificate"].includes(id),
+  popular: ["cv-resume", "leave-application", "rent-agreement", "bank-application"].includes(id),
   difficulty: template.variants[0]?.difficulty || "Easy",
   time:
     template.variants[0]?.difficulty === "Easy"
@@ -157,6 +158,10 @@ function TemplatesContent() {
 }
 
 function TemplateCard({ template, usageCount }: { template: any; usageCount?: number }) {
+  const handleClick = () => {
+    trackEvent("template_card_clicked", template.id, { category: template.category })
+  }
+
   return (
     <Card className="hover:shadow-lg transition-shadow">
       <CardHeader>
@@ -192,7 +197,9 @@ function TemplateCard({ template, usageCount }: { template: any; usageCount?: nu
         </div>
 
         <Button className="w-full" asChild>
-          <Link href={`/generate/${template.id}`}>Use Template</Link>
+          <Link href={`/generate/${template.id}`} onClick={handleClick}>
+            Use Template
+          </Link>
         </Button>
       </CardContent>
     </Card>

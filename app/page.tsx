@@ -118,7 +118,7 @@ export default function HomePage() {
               <div className="w-12 h-12 bg-primary/10 rounded-lg flex items-center justify-center mx-auto mb-4">
                 <FileText className="h-6 w-6 text-primary" />
               </div>
-              <h3 className="font-semibold mb-2">10+ Templates</h3>
+              <h3 className="font-semibold mb-2">4 Core Templates</h3>
               <p className="text-sm text-muted-foreground">
                 Comprehensive collection of official and personal document
                 templates
@@ -139,9 +139,9 @@ export default function HomePage() {
               <div className="w-12 h-12 bg-primary/10 rounded-lg flex items-center justify-center mx-auto mb-4">
                 <Download className="h-6 w-6 text-primary" />
               </div>
-              <h3 className="font-semibold mb-2">PDF & DOC Export</h3>
+              <h3 className="font-semibold mb-2">PDF Export</h3>
               <p className="text-sm text-muted-foreground">
-                Download your documents in PDF or editable DOC format
+                Download your generated documents instantly in PDF format
               </p>
             </Card>
 
@@ -197,16 +197,16 @@ export default function HomePage() {
                 popular: false,
               },
               {
-                title: "RTI Application",
-                description: "Right to Information request form",
-                category: "Legal",
-                popular: false,
-              },
-              {
-                title: "Character Certificate",
-                description: "Character certificate application",
+                title: "Bank Application",
+                description: "Application letter for common bank requests",
                 category: "Personal",
                 popular: true,
+              },
+              {
+                title: "Complaint Letter",
+                description: "Formal complaint letter for offices and institutions",
+                category: "Legal",
+                popular: false,
               },
             ].map((template, index) => (
               <Card key={index} className="hover:shadow-lg transition-shadow">
@@ -244,9 +244,7 @@ export default function HomePage() {
         <div className="container mx-auto">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8 text-center">
             <div>
-              <div className="text-4xl font-bold text-primary mb-2">
-                10+
-              </div>
+              <div className="text-4xl font-bold text-primary mb-2">50+</div>
               <p className="text-muted-foreground">Documents Generated</p>
             </div>
             <div>
@@ -254,7 +252,7 @@ export default function HomePage() {
               <p className="text-muted-foreground">Happy Users</p>
             </div>
             <div>
-              <div className="text-4xl font-bold text-primary mb-2">10+</div>
+              <div className="text-4xl font-bold text-primary mb-2">7</div>
               <p className="text-muted-foreground">Template Options</p>
             </div>
           </div>
