@@ -26,5 +26,9 @@ export function renderTemplatePreview(ctx: PreviewRenderContext): ReactNode {
   if (ctx.templateId === "cv-resume") return ctx.renderCv()
   if (ctx.templateId === "marriage-affidavit") return ctx.renderMarriage()
   if (ctx.templateId === "rent-agreement") return ctx.renderRent()
+  if (ctx.templateId === "bahal-samjhauta-budhanilkantha") return ctx.renderRent()
+  if (ctx.templateId === "bahal-samjhauta-sunwal") return ctx.renderRent()
+  if (ctx.templateId === "lease-agreement-koshi") return ctx.renderRent()
+  if (ctx.templateId === "bharpai-receipt") return ctx.renderBharpai()
   return renderFallbackPreview(ctx.templateTitle, ctx.formData)
 }

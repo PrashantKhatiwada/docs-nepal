@@ -22,7 +22,7 @@ const templates = Object.entries(templateData).map(([id, template]) => ({
   title: template.title,
   description: template.description,
   category: template.category,
-  popular: ["cv-resume", "leave-application", "rent-agreement", "bank-application"].includes(id),
+  popular: ["cv-resume", "leave-application", "rent-agreement", "bank-application", "bharpai-receipt"].includes(id),
   difficulty: template.variants[0]?.difficulty || "Easy",
   time:
     template.variants[0]?.difficulty === "Easy"
@@ -35,6 +35,7 @@ const templates = Object.entries(templateData).map(([id, template]) => ({
 }))
 
 const categories = ["All", "Personal", "Legal", "Employment", "Education"]
+
 
 function TemplatesContent() {
   const [searchTerm, setSearchTerm] = useState("")

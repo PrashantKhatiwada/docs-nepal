@@ -15,6 +15,7 @@ import { templates, type TemplateId, type Language } from "@/lib/templates"
 import { validateTemplateForm } from "@/lib/template-validation"
 import { renderTemplatePreview } from "@/lib/template-renderers"
 import { renderMarriageAffidavitPreview } from "@/lib/template-renderers/marriage-affidavit"
+import { renderBharpaiReceiptPreview } from "@/lib/template-renderers/bharpai-receipt"
 import { trackEvent } from "@/lib/analytics"
 import { useToast } from "@/hooks/use-toast"
 import { LanguageSelector } from "@/components/language-selector"
@@ -1411,6 +1412,10 @@ function GenerateDocumentContent() {
     return renderMarriageAffidavitPreview(formData, selectedVariant)
   }
 
+  const generateBharpaiReceiptPreview = () => {
+    return renderBharpaiReceiptPreview(formData)
+  }
+
   const generatePreview = () => {
     return renderTemplatePreview({
       templateId,
@@ -1420,6 +1425,7 @@ function GenerateDocumentContent() {
       renderLeave: generateLeaveApplicationPreview,
       renderRent: generateRentAgreementPreview,
       renderMarriage: generateMarriageAffidavitPreview,
+      renderBharpai: generateBharpaiReceiptPreview,
     })
   }
 

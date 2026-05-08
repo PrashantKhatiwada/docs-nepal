@@ -9,4 +9,5 @@ export interface PreviewRenderContext {
   renderLeave: () => ReactNode
   renderRent: () => ReactNode
   renderMarriage: () => ReactNode
+  renderBharpai: () => ReactNode
 }

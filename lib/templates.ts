@@ -5,6 +5,10 @@ import { rentAgreementTemplate } from "./template-definitions/rent-agreement"
 import { bankApplicationTemplate } from "./template-definitions/bank-application"
 import { complaintLetterTemplate } from "./template-definitions/complaint-letter"
 import { scholarshipApplicationTemplate } from "./template-definitions/scholarship-application"
+import { bharpaiReceiptTemplate } from "./template-definitions/bharpai-receipt"
+import { bahalSamjhautaBudhanilkanthaTemplate } from "./template-definitions/bahal-samjhauta-budhanilkantha"
+import { bahalSamjhautaSunwalTemplate } from "./template-definitions/bahal-samjhauta-sunwal"
+import { leaseAgreementKoshiTemplate } from "./template-definitions/lease-agreement-koshi"
 import type { Template } from "./template-definitions/types"
 
 export type { Language, Template, TemplateField, TemplateVariant } from "./template-definitions/types"
@@ -17,6 +21,10 @@ export const templates: Record<string, Template> = {
   "bank-application": bankApplicationTemplate,
   "complaint-letter": complaintLetterTemplate,
   "scholarship-application": scholarshipApplicationTemplate,
+  "bharpai-receipt": bharpaiReceiptTemplate,
+  "bahal-samjhauta-budhanilkantha": bahalSamjhautaBudhanilkanthaTemplate,
+  "bahal-samjhauta-sunwal": bahalSamjhautaSunwalTemplate,
+  "lease-agreement-koshi": leaseAgreementKoshiTemplate,
 }
 
 export type TemplateId = keyof typeof templates
